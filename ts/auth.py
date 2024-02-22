@@ -146,7 +146,7 @@ def __token_loader(token_path: str) -> Callable[[], Dict[str, Any]]:
 
 def easy_client(
     client_key: str, client_secret: str, redirect_uri: str, autho_scope: str = "openid offline_access profile MarketData ReadAccount Trade Crypto Matrix OptionSpreads",
-    paper_trade: bool = True, asyncio: bool = False
+    paper_trade: bool = True, asyncio: bool = False, token_path: str = "ts_state.json"
 ) -> AsyncClient | Client:
     """
     Initialize and return a client object based on existing token or manual flow.
@@ -173,18 +173,18 @@ def easy_client(
     """
     logger = get_logger()
 
-    if os.path.isfile("ts_state.json"):
-        c = client_from_token_file(client_key, client_secret, paper_trade, asyncio)
-        logger.info("Returning client loaded from token file 'ts_state.json'")
+    if os.path.isfile(token_path):
+        c = client_from_token_file(client_key, client_secret, paper_trade, asyncio, token_path=token_path)
+        logger.info(f"Returning client loaded from token file '{token_path}'")
     else:
-        logger.warning("Failed to find token file 'ts_state.json'. Generating URL needed for manually authorizing application. Please follow directions:")
-        c = client_from_manual_flow(client_key, client_secret, redirect_uri, autho_scope, paper_trade, asyncio)
+        logger.warning(f"Failed to find token file '{token_path}'. Generating URL needed for manually authorizing application. Please follow directions:")
+        c = client_from_manual_flow(client_key, client_secret, redirect_uri, autho_scope, paper_trade, asyncio, token_path=token_path)
     return c
 
 
 def client_from_manual_flow(
     client_key: str, client_secret: str, redirect_uri: str, autho_scope: str = "openid offline_access profile MarketData ReadAccount Trade Crypto Matrix OptionSpreads", 
-    paper_trade: bool = True, asyncio: bool = False
+    paper_trade: bool = True, asyncio: bool = False, token_path: str = "ts_state.json"
 ) -> AsyncClient | Client:
     """
     Initialize and return a client object by manually completing the OAuth2 flow.
@@ -266,7 +266,7 @@ def client_from_manual_flow(
     token: dict[str, Union[str, int]] = response.json()
 
     # Update Token State (this function should be defined elsewhere)
-    update_token = __update_token("ts_state.json")
+    update_token = __update_token(token_path)
     update_token(token)
 
     # Initialize the Client
@@ -284,7 +284,7 @@ def client_from_manual_flow(
 
 
 def client_from_token_file(
-    client_key: str, client_secret: str, paper_trade: bool = True, asyncio: bool = False
+    client_key: str, client_secret: str, paper_trade: bool = True, asyncio: bool = False, token_path: str = "ts_state.json"
 ) -> AsyncClient | Client:
     """
     Initialize and return a client object based on a given token file.
@@ -315,8 +315,8 @@ def client_from_token_file(
     return client_from_access_functions(
         client_key,
         client_secret,
-        __token_loader("ts_state.json"),
-        __update_token("ts_state.json"),
+        __token_loader(token_path),
+        __update_token(token_path),
         paper_trade,
         asyncio,
     )

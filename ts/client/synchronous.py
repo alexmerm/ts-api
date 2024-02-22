@@ -9,8 +9,11 @@ from typing import Any, Mapping, Optional
 
 import httpx
 
+import logging
+
 from .base import BaseClient
 
+logger = logging.getLogger(__name__)
 
 class Client(BaseClient):
     """
@@ -56,9 +59,10 @@ class Client(BaseClient):
         """
         if headers is None:
             headers = {}
-
+        # print(f"GET request to {url} with headers: {headers} and params: {params}")
+        # logger.info(f"GET request to {url} with headers: {headers} and params: {params}")
         with httpx.Client() as client:
-            response = client.get(url, headers=headers, params=params)
+            response = client.get(url, headers=headers, params=params, timeout=60)
 
         return response
 

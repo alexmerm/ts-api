@@ -6,6 +6,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta
 from typing import Any, Awaitable, Callable, Coroutine, Mapping, Optional, Union
+import logging
 
 from httpx import Client, Response
 
@@ -14,6 +15,8 @@ TOKEN_ENDPOINT = "https://signin.tradestation.com/oauth/token"  # nosec - This i
 AUDIENCE_ENDPOINT = "https://api.tradestation.com/v3"
 PAPER_ENDPOINT = "https://sim-api.tradestation.com/v3"
 
+
+logger = logging.getLogger(__name__)
 
 @dataclass
 class BaseClient(ABC):
@@ -248,10 +251,11 @@ class BaseClient(ABC):
         (int): The number of seconds till expiration
         """
         # Calculate the token expire time.
-        token_exp = time.time() >= self._access_token_expires_at
+        time_to_exp = self._access_token_expires_at - time.time()
+        # token_exp = time.time() >= self._access_token_expires_at
 
         # if the time to expiration is less than or equal to 0, return 0.
-        return 0 if not self._refresh_token or token_exp else int(token_exp)
+        return 0 if not self._refresh_token or (time_to_exp <= 0) else int(time_to_exp)
 
     def _token_validation(self, nseconds: int = 5) -> None:
         """Validate the Access Token.
@@ -578,23 +582,34 @@ class BaseClient(ABC):
     def get_bars(
         self,
         symbol: str,
-        interval: int,
-        unit: str,
-        barsback: int,
-        firstdate: datetime,
-        lastdate: datetime,
-        sessiontemplate: str,
+        interval: int = 1,
+        unit: str = "daily",
+        barsback: Optional[int] = None,
+        firstdate: Optional[datetime] = None,
+        lastdate: Optional[datetime] = None,
+        sessiontemplate: Optional[str] = None,
+        normalize_dates : bool = False
     ) -> Response | Awaitable[Response]:
-        """Grabs all the accounts associated with the User.
+        """
+        Fetches marketdata bars for the given symbol, interval, and timeframe. The maximum amount of intraday bars a user can fetch is 57,600 per request. This is calculated either by the amount of barsback or bars within a timeframe requested.
+        When using firstdate and lastdate parameters, for daily bars, the response contains (firstDate, lastDate], for minute bars its (firstDate, lastDate). (if not using normalize_dates)
 
-        Arguments:
-        ----
-        user_id (str): The Username of the account holder.
+        if not using normalize_dates, firstdate and lastdate MUST be timezone aware
+        if using normalize dates, firstdate and lastdate timezone info is irrelavant, and daily is inclusive at both ends
+        Args:
+            symbol (str): The symbol for which to retrieve bars data.
+            interval (int): The interval that each bar will consist of. Defaults to 1. For minute max is 1440
+            unit (str): The unit of time for the data.
+            barsback (Optional[int], optional): The number of bars to retrieve. Defaults to None. Defaults to 1 in api. Max is 57600 for intraday (i think minutely) data, and none for other
+            firstdate (Optional[datetime], optional): The first date for the bars data. Defaults to None.
+            lastdate (Optional[datetime], optional): The last date for the bars data. Defaults to None. Defaults to latest timestamp in api
+            sessiontemplate (Optional[str], optional): The United States (US) stock market session templates for the bars data. Defaults to None.
+            normalize_dates (bool, optional): If True, will normalize the dates to the format 'YYYY-MM-DD'. Defaults to False.
 
         Returns:
-        ----
-        (dict): All the user accounts.
+            Response | Awaitable[Response]: The response object or an awaitable response object.
         """
+
         # validate the token.
         self._token_validation()
 
@@ -606,11 +621,30 @@ class BaseClient(ABC):
             "access_token": self._access_token,
             "interval": interval,
             "unit": unit,
-            "barsback": barsback,
-            "firstdate": firstdate,
-            "lastdate": lastdate,
-            "sessiontemplate": sessiontemplate,
+            # "barsback": barsback,
+            # "firstdate": firstdate,
+            # "lastdate": lastdate,
+            # "sessiontemplate": sessiontemplate,
         }
+        if lastdate:
+            params["lastdate"] = lastdate.isoformat()
+            if normalize_dates:
+                params["lastdate"] = lastdate.strftime("%Y-%m-%d")
+
+        if barsback:
+            params["barsback"] = barsback
+        if firstdate:
+            params["firstdate"] = firstdate.isoformat()
+            if normalize_dates:
+                #NOTE: ONLY run like this when youre using timezone unaware dates and daily bars
+                #NOTE: with THIS, daily is inlcusive at both ends
+                # print("Warning: firstDate and lastDate are not timezone aware and daily is chosen, so using ")
+                params["firstdate"] = firstdate.strftime("%Y-%m-%d")
+        # else:
+        #     raise ValueError("Must pass either barsback or firstdate.")
+        #     #NOTE: this isnt actually true, bc barsback defautls to 1 in api 
+        if sessiontemplate:
+            params["sessiontemplate"] = sessiontemplate
 
         return self._get_request(url=url_endpoint, params=params)
 
@@ -620,7 +654,7 @@ class BaseClient(ABC):
         self._token_validation()
 
         # define the endpoint.
-        url_endpoint = self._api_endpoint(url='marketdata/symbollists/cryptopairs/symbolnames"')
+        url_endpoint = self._api_endpoint(url='marketdata/symbollists/cryptopairs/symbolnames')
 
         # define the arguments
         params = {"access_token": self._access_token}
