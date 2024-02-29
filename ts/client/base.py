@@ -661,12 +661,12 @@ class BaseClient(ABC):
 
         return self._get_request(url=url_endpoint, params=params)
 
-    def get_symbol_details(self, symbols: list[str]) -> Response | Awaitable[Response]:
+    def get_symbol_details(self, symbols: Union[str, list[str]]) -> Response | Awaitable[Response]:
         """Grabs the info for a particular symbol.
 
         Arguments:
         ----
-        symbol (str): A ticker symbol.
+        symbols (Union[str, list[str]]): A ticker symbol or a list of ticker symbols.
 
         Raises:
         ----
@@ -681,6 +681,8 @@ class BaseClient(ABC):
 
         if symbols is None:
             raise ValueError("You must pass through a symbol.")
+        elif isinstance(symbols, str):
+            symbols = [symbols]
         elif 0 > len(symbols) > 50:
             raise ValueError("You may only send [1..50] symbols per request.")
 
