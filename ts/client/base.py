@@ -5,15 +5,16 @@ import time
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta
-from typing import Any, Awaitable, Callable, Coroutine, Mapping, Optional, Union
+from typing import Any, Awaitable, Callable, Coroutine, Mapping, Optional, Union, ContextManager, AsyncContextManager
 import logging
+import urllib.parse
 
 from httpx import Client, Response
 
 AUTH_ENDPOINT = "https://signin.tradestation.com/authorize"
 TOKEN_ENDPOINT = "https://signin.tradestation.com/oauth/token"  # nosec - This isn't a hardcoded password.
-AUDIENCE_ENDPOINT = "https://api.tradestation.com/v3"
-PAPER_ENDPOINT = "https://sim-api.tradestation.com/v3"
+AUDIENCE_ENDPOINT = "https://api.tradestation.com/v"
+PAPER_ENDPOINT = "https://sim-api.tradestation.com/v"
 
 
 logger = logging.getLogger(__name__)
@@ -67,7 +68,7 @@ class BaseClient(ABC):
 
     @abstractmethod
     def _get_request(
-        self, url: str, params: Optional[dict] = None, headers: Optional[dict] = None
+        self, url: str, params: Optional[dict] = None, headers: Optional[dict] = None, timeout: int = 60
     ) -> Union[Response, Coroutine[Any, Any, Response]]:
         """Submit a get request to TradeStation."""
         pass
@@ -94,6 +95,12 @@ class BaseClient(ABC):
         """Submit a put request to TradeStation."""
         pass
 
+    @abstractmethod
+    def _stream_request(self, url: str, params: Optional[dict] = None,
+                        headers: Optional[dict] = None, timeout : int = 60) -> Union[ContextManager[Response], AsyncContextManager[Response]]:
+        """Submit a stream request to TradeStation."""
+        pass
+
     def __repr__(self) -> str:
         """Define the string representation of our TradeStation Class instance.
 
@@ -103,7 +110,7 @@ class BaseClient(ABC):
         """
         return f"<TradeStation Client (logged_in={self._logged_in}, authorized={self._auth_state})>"
 
-    def _api_endpoint(self, url: str) -> str:
+    def _api_endpoint(self, url: str, version : int = 3) -> str:
         """Create an API URL.
 
         Overview:
@@ -120,7 +127,7 @@ class BaseClient(ABC):
         """
         # paper trading uses a different base url compared to regular trading.
 
-        return f"{self._base_resource}/{url}"
+        return f"{self._base_resource}{version}/{url}"
 
     def _grab_refresh_token(self) -> bool:
         """Refresh the current access token if it's expired.
@@ -648,6 +655,28 @@ class BaseClient(ABC):
 
         return self._get_request(url=url_endpoint, params=params)
 
+    def stream_bars(self, symbol: str, interval: int =1, unit: str = "daily",
+                    barsback: Optional[int] = None,
+                    sessiontemplate: Optional[str] = None) -> Union[ContextManager[Response], AsyncContextManager[Response]]:
+        # validate the token.
+        self._token_validation()
+
+        # define the endpoint.
+        url_endpoint = self._api_endpoint(f"marketdata/stream/barcharts/{symbol}")
+        params = {
+            "access_token": self._access_token,
+            "interval": interval,
+            "unit": unit,
+        }
+        if barsback:
+            params["barsback"] = barsback
+        if sessiontemplate:
+            params["sessiontemplate"] = sessiontemplate
+
+        return self._stream_request(url=url_endpoint, params=params, timeout=7)
+
+
+
     def get_crypto_symbol_names(self) -> Response | Awaitable[Response]:
         """Fetch all crypto Symbol Names information."""
         # validate the token.
@@ -845,6 +874,31 @@ class BaseClient(ABC):
         }
 
         return self._get_request(url=url_endpoint, params=params)
+
+    def search_symbols(self, criteria : dict, timeout: int = 6) -> Response | Awaitable[Response]:
+        """Search for symbols based on the given criteria.
+
+        Args:
+            criteria (dict): A dictionary of search criteria, laid out in the API dovumentation
+
+        Returns:
+            Response | Awaitable[Response]: The response object or an awaitable response object.
+        """
+        # validate the token.
+        self._token_validation()
+
+        # define the endpoint.
+        url_endpoint = self._api_endpoint('data/symbols/search/',version=2)
+
+        # define the arguments
+        params = {
+            "access_token": self._access_token,
+        }
+        qString = urllib.parse.urlencode(criteria)
+        # this url format looks wrong but it's actually correct
+        return self._get_request(url=url_endpoint + qString, params=params, timeout = timeout)
+
+
 
     ###################
     # Order Execution #

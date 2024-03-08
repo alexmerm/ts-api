@@ -4,8 +4,7 @@ This module defines the Client class, to make synchronous HTTP requests using th
 Classes:
     - Client: Manages synchronous HTTP requests.
 """
-
-from typing import Any, Mapping, Optional
+from typing import Any, Mapping, Optional,Iterator,Generator, ContextManager
 
 import httpx
 
@@ -22,6 +21,10 @@ class Client(BaseClient):
     This class inherits from the BaseClient class and implements its abstract methods
     for making HTTP DELETE, GET, POST, and PUT requests.
     """
+
+    def __post_init__(self):
+        super().__post_init__()
+        self.client = httpx.Client()
 
     def _delete_request(
         self, url: str, params: Optional[dict] = None, headers: Optional[dict] = None
@@ -40,12 +43,12 @@ class Client(BaseClient):
         if headers is None:
             headers = {}
 
-        with httpx.Client() as client:
-            response = client.delete(url, headers=headers, params=params)
+        # with httpx.Client() as client:
+        response = self.client.delete(url, headers=headers, params=params)
 
         return response
 
-    def _get_request(self, url: str, params: Optional[dict] = None, headers: Optional[dict] = None) -> httpx.Response:
+    def _get_request(self, url: str, params: Optional[dict] = None, headers: Optional[dict] = None, timeout : int = 60) -> httpx.Response:
         """
         Submit a GET request to a given URL.
 
@@ -62,7 +65,7 @@ class Client(BaseClient):
         # print(f"GET request to {url} with headers: {headers} and params: {params}")
         # logger.info(f"GET request to {url} with headers: {headers} and params: {params}")
         with httpx.Client() as client:
-            response = client.get(url, headers=headers, params=params, timeout=60)
+            response = client.get(url, headers=headers, params=params, timeout=timeout)
 
         return response
 
@@ -119,3 +122,10 @@ class Client(BaseClient):
             response = client.put(url, headers=headers, params=params, data=data)
 
         return response
+
+    def _stream_request(self, url: str, params: Optional[dict] = None,
+                        headers: Optional[dict] = None, timeout : int = 60) -> ContextManager[httpx.Response]:
+        """Submit a stream request to TradeStation."""
+        if headers is None:
+            headers = {}
+        return self.client.stream('GET', url, headers=headers, params=params, timeout=timeout)
