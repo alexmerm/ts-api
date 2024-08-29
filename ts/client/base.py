@@ -52,6 +52,7 @@ class BaseClient(ABC):
     _access_token_expires_at: float = field(default=0.0)
     _token_read_func: Optional[Callable] = field(default=None)
     _token_update_func: Optional[Callable] = field(default=None)
+    #NOTE: this is a ridiculous way of instantiating, it *should* be replaced by just passing a filename but thats complex rn
 
     def __post_init__(self) -> None:
         """Init the base resource field."""
@@ -177,7 +178,7 @@ class BaseClient(ABC):
         (bool): `True` if saving the token was successful. `False` otherwise.
         """
         if self._update_token_variables(response):
-            filename = "ts_state.json"
+            # filename = "ts_state.json"
 
             state = {
                 "access_token": self._access_token,
@@ -186,9 +187,9 @@ class BaseClient(ABC):
                 "access_token_expires_in": self._access_token_expires_in,
             }
 
-            with open(file=filename, mode="w+") as state_file:
-                json.dump(obj=state, fp=state_file, indent=4)
-
+            # with open(file=filename, mode="w+") as state_file:
+            #     json.dump(obj=state, fp=state_file, indent=4)
+            self._token_update_func(state)
             return True
 
         return False
@@ -199,13 +200,14 @@ class BaseClient(ABC):
         Returns:
             bool: Success / Failure
         """
-        dir_path = os.path.dirname(os.path.realpath(__file__))
-        filename = "ts_state.json"
-        file_path = os.path.join(dir_path, filename)
+        # dir_path = os.path.dirname(os.path.realpath(__file__))
+        # filename = "ts_state.json"
+        # file_path = os.path.join(dir_path, filename)
         state: Optional[dict] = None
 
-        with open(file=file_path, mode="r") as state_file:
-            state |= json.load(fp=state_file)
+        # with open(file=file_path, mode="r") as state_file:
+        #     state |= json.load(fp=state_file)
+        state |= self._token_read_func()
 
         if isinstance(state, dict):
             self._access_token = state.get("access_token")
@@ -285,12 +287,8 @@ class BaseClient(ABC):
     # Brokerage #
     #############
 
-    def get_accounts(self, user_id: str) -> Response | Awaitable[Response]:
-        """Grabs all the accounts associated with the User.
-
-        Arguments:
-        ----
-        user_id (str): The Username of the account holder.
+    def get_accounts(self) -> Response | Awaitable[Response]:
+        """Grabs all the accounts associated with the Current User.
 
         Returns:
         ----
@@ -300,7 +298,7 @@ class BaseClient(ABC):
         self._token_validation()
 
         # define the endpoint.
-        url_endpoint = self._api_endpoint(url="users/{username}/accounts".format(username=user_id))
+        url_endpoint = self._api_endpoint(url="brokerage/accounts")
 
         # define the arguments
         params = {"access_token": self._access_token}

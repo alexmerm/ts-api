@@ -280,6 +280,8 @@ def client_from_manual_flow(
         _refresh_token=str(token.get("refresh_token")),
         _access_token_expires_in=int(token.get("access_token_expires_in", 0)),
         _access_token_expires_at=int(token.get("access_token_expires_at", 0)),
+        _token_read_func=__token_loader(token_path),
+        _token_update_func=__update_token(token_path),
     )
 
 
