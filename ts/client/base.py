@@ -80,7 +80,7 @@ class BaseClient(ABC):
         url: str,
         params: Optional[dict] = None,
         headers: Optional[dict] = None,
-        data: Optional[Mapping[str, Any]] = None,
+        json: Optional[Mapping[str, Any]] = None,
     ) -> Union[Response, Coroutine[Any, Any, Response]]:
         """Submit a post request to TradeStation."""
         pass
@@ -781,7 +781,7 @@ class BaseClient(ABC):
 
         payload = {"SpreadPrice": price, "Legs": legs}
 
-        return self._post_request(url=url_endpoint, params=params, data=payload)
+        return self._post_request(url=url_endpoint, params=params, json=payload)
 
     def get_option_spread_types(self) -> Response | Awaitable[Response]:
         """Get the available spread types for option chains."""
@@ -886,7 +886,7 @@ class BaseClient(ABC):
         self._token_validation()
 
         # define the endpoint.
-        url_endpoint = self._api_endpoint('data/symbols/search/',version=2)
+        url_endpoint = self._api_endpoint('json/symbols/search/',version=2)
 
         # define the arguments
         params = {
@@ -928,7 +928,7 @@ class BaseClient(ABC):
         # Define the arguments.
         params = {"access_token": self._access_token}
 
-        return self._post_request(url=url_endpoint, params=params, data=payload)
+        return self._post_request(url=url_endpoint, params=params, json=payload)
 
     def confirm_group_order(self, orders: list[dict], type: str) -> Response | Awaitable[Response]:
         """Create an Order Confirmation for a group order.
@@ -952,7 +952,7 @@ class BaseClient(ABC):
 
         data = {"Type": type, "Orders": orders}
 
-        return self._post_request(url=url_endpoint, params=params, data=data)
+        return self._post_request(url=url_endpoint, params=params, json=data)
 
     def place_group_order(self, orders: list[dict], type: str) -> Response | Awaitable[Response]:
         """Submit a list of orders.
@@ -972,7 +972,7 @@ class BaseClient(ABC):
 
         data = {"Type": type, "Orders": orders}
 
-        return self._post_request(url=url_endpoint, params=params, data=data)
+        return self._post_request(url=url_endpoint, params=params, json=data)
 
     def place_order(self, order: dict) -> Response | Awaitable[Response]:
         """Submit an order.
@@ -990,7 +990,7 @@ class BaseClient(ABC):
         # define the arguments.
         params = {"access_token": self._access_token}
 
-        return self._post_request(url=url_endpoint, params=params, data=order)
+        return self._post_request(url=url_endpoint, params=params, json=order)
 
     def replace_order(self, order_id: str | int, new_order: dict) -> Response | Awaitable[Response]:
         """Replace an order.

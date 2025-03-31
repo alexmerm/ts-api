@@ -50,13 +50,13 @@ class AsyncClient(BaseClient):
         url: str,
         params: Optional[dict] = None,
         headers: Optional[dict] = None,
-        data: Optional[Mapping[str, Any]] = None,
+        json: Optional[Mapping[str, Any]] = None,
     ) -> httpx.Response:
         if headers is None:
             headers = {}
 
         async with httpx.AsyncClient() as client:
-            response = await client.post(url, headers=headers, params=params, data=data)
+            response = await client.post(url, headers=headers, params=params, json=json)
 
         return response
 

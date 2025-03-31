@@ -74,7 +74,7 @@ class Client(BaseClient):
         url: str,
         params: Optional[dict] = None,
         headers: Optional[dict] = None,
-        data: Optional[Mapping[str, Any]] = None,
+        json: Optional[Mapping[str, Any]] = None,
     ) -> httpx.Response:
         """
         Submit a POST request to a given URL.
@@ -83,7 +83,7 @@ class Client(BaseClient):
         - url (str): The URL to which the request is sent.
         - params (Optional[dict]): Query parameters to append to the URL.
         - headers (Optional[dict]): Headers to include in the request.
-        - data (Optional[Mapping[str, Any]]): Data payload for the request.
+        - json (Optional[Mapping[str, Any]]): Data payload for the request.
 
         Returns:
         - httpx.Response: The response received from the server.
@@ -92,7 +92,7 @@ class Client(BaseClient):
             headers = {}
 
         with httpx.Client() as client:
-            response = client.post(url, headers=headers, params=params, data=data)
+            response = client.post(url, headers=headers, params=params, json=json)
 
         return response
 
@@ -110,7 +110,7 @@ class Client(BaseClient):
         - url (str): The URL to which the request is sent.
         - params (Optional[dict]): Query parameters to append to the URL.
         - headers (Optional[dict]): Headers to include in the request.
-        - data (Optional[Mapping[str, Any]]): Data payload for the request.
+        - json (Optional[Mapping[str, Any]]): Data payload for the request.
 
         Returns:
         - httpx.Response: The response received from the server.
